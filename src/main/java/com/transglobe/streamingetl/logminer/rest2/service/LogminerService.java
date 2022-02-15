@@ -1,19 +1,33 @@
 package com.transglobe.streamingetl.logminer.rest2.service;
 
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.transglobe.streamingetl.logminer.rest2.bean.ApplyLogminerSync;
 
 @Service
 public class LogminerService {
@@ -31,6 +45,13 @@ public class LogminerService {
 	@Value("${connect.rest.port}")
 	private String connectRestPortStr;
 	
+	@Value("${connect.rest.url}")
+	private String connectRestUrl;
+	
+	@Value("${connector.name}")
+	private String connectorName;
+	
+	
 //	@Value("${connector.start.default.script}")
 //	private String connectorStartDefaultScript;
 	
@@ -46,7 +67,7 @@ public class LogminerService {
 			
 				ProcessBuilder builder = new ProcessBuilder();
 				String script = connectStandloneScript;
-				String props = connectStandloneProp + " " + connectLogminerConfig;
+				
 				//builder.command("sh", "-c", script);
 				builder.command(script, connectStandloneProp, connectLogminerConfig);
 
@@ -71,7 +92,7 @@ public class LogminerService {
 					logger.info(">>>> Sleep for 1 second");;
 				}
 				Thread.sleep(15000);
-				logger.info(">>>>>>>>>>>> KafkaService.startKafka End");
+				logger.info(">>>>>>>>>>>> KafkaService.startLogminer End");
 
 				logger.info(">>>>>>>>>>>> LogminerService.startConnector End");
 			} else {
@@ -123,6 +144,178 @@ public class LogminerService {
 			logger.error(">>> Error!!!, stopLogminer, msg={}, stacktrace={}", ExceptionUtils.getMessage(e), ExceptionUtils.getStackTrace(e));
 			throw e;
 		} 
+	}
+	public Boolean applyLogminerSync(ApplyLogminerSync applySync) throws Exception {
+		logger.info(">>> ApplyLogminerSync={}", ToStringBuilder.reflectionToString(applySync));
+		Map<String,String>  configmap = getConnectorConfig(connectorName);
+		logger.info(">>> original configmap={}", configmap);
+
+		logger.info(">>> updatedConnectorConfigMap");
+
+		String[] tableArr = applySync.getTableListStr().split(",");
+		List<String> tableList = Arrays.asList(tableArr);
+		Set<String> tableSet = new HashSet<>(tableList);
+
+		updatedConnectorConfigMap(configmap, applySync.getResetOffset(), applySync.getStartScn(), applySync.getApplyOrDrop(), tableSet);
+
+		logger.info(">>> updated configmap={}", configmap);
+
+		logger.info(">>>> add sync table to config's whitelist");
+
+		logger.info(">>>> updateConnector ...");
+		Boolean result = updateConnector(connectorName, configmap);
+		logger.info(">>>> updateConnector result={}", result);
+
+
+		return result;
+	}
+	public boolean updateConnector(String connectorName, Map<String, String> configmap) throws Exception {
+		logger.info(">>>>>>>>>>>> updateConnector");
+
+		HttpURLConnection httpConn = null;
+		DataOutputStream dataOutStream = null;
+		try {
+
+			ObjectMapper objectMapper = new ObjectMapper();
+			String configStr = objectMapper.writeValueAsString(configmap);
+
+
+			String urlStr = connectRestUrl+"/connectors/" + connectorName + "/config";
+
+			logger.info(">>>>> connector urlStr={},reConfigStr={}", urlStr, configStr);
+
+			URL url = new URL(urlStr);
+			httpConn = (HttpURLConnection)url.openConnection();
+			httpConn.setRequestMethod("PUT"); 
+			httpConn.setDoInput(true);
+			httpConn.setDoOutput(true);
+			httpConn.setRequestProperty("Content-Type", "application/json");
+			httpConn.setRequestProperty("Accept", "application/json");
+
+			dataOutStream = new DataOutputStream(httpConn.getOutputStream());
+			dataOutStream.writeBytes(configStr);
+
+			dataOutStream.flush();
+
+			int responseCode = httpConn.getResponseCode();
+			logger.info(">>>>> updateConnector responseCode={}",responseCode);
+
+			String readLine = null;
+
+			BufferedReader in = new BufferedReader(new InputStreamReader(httpConn.getInputStream(), "UTF-8"));
+			StringBuffer response = new StringBuffer();
+			while ((readLine = in.readLine()) != null) {
+				response.append(readLine);
+			}
+			in.close();
+			logger.info(">>>>> updateConnector response={}",response.toString());
+
+			if (200 == responseCode || 201 == responseCode) {
+				return true;
+			} else {
+				return false;
+			}
+
+		}  finally {
+			if (dataOutStream != null) {
+				try {
+					dataOutStream.flush();
+					dataOutStream.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			if (httpConn != null )httpConn.disconnect();
+
+		}
+	}
+	@SuppressWarnings("unchecked")
+	private Map<String,String> getConnectorConfig(String connectorName) throws Exception {
+
+
+		Map<String,String> configmap = new HashMap<>();
+		String urlStr = String.format(connectRestUrl+"/connectors/%s/config", connectorName);
+		logger.info(">>>>>>>>>>>> urlStr={} ", urlStr);
+		HttpURLConnection httpCon = null;
+		try {
+			URL url = new URL(urlStr);
+			httpCon = (HttpURLConnection)url.openConnection();
+			httpCon.setRequestMethod("GET");
+			int responseCode = httpCon.getResponseCode();
+			String readLine = null;
+			//			if (httpCon.HTTP_OK == responseCode) {
+			BufferedReader in = new BufferedReader(new InputStreamReader(httpCon.getInputStream()));
+			StringBuffer response = new StringBuffer();
+			while ((readLine = in.readLine()) != null) {
+				response.append(readLine);
+			}
+			in.close();
+
+			logger.info(">>>>> CONNECT REST responseCode={},response={}", responseCode, response.toString());
+
+			configmap = (Map<String,String>)(new ObjectMapper().readValue(response.toString(), HashMap.class));
+
+		} finally {
+			if (httpCon != null ) httpCon.disconnect();
+		}
+		return configmap;
+
+	}
+	private void updatedConnectorConfigMap(Map<String,String> configmap, Boolean resetOffset, Long startScn, int applyOrDrop, Set<String> tableSet) throws Exception {
+
+		logger.info(">>>> configmap={}", configmap);
+
+		if (Boolean.TRUE.equals(resetOffset)) {
+			configmap.put("reset.offset", "true");
+		} else if (Boolean.FALSE.equals(resetOffset)) {
+			configmap.put("reset.offset", "false");
+			configmap.put("start.scn", String.valueOf(startScn));
+		}
+
+		if (applyOrDrop == 1) {
+			Set<String> newSynTabSet = new HashSet<>();
+			String[] origTableArr = configmap.get("table.whitelist").split(",");
+			
+			for (String tableName : tableSet) {
+				boolean match = false;
+				for (String tab : origTableArr) {
+					if (StringUtils.equalsIgnoreCase(tableName, tab)) {
+						match = true;
+						break;
+					}
+				}
+				if (!match) {
+					newSynTabSet.add(tableName);
+				}
+			}
+			
+			String newsyncTables = String.join(",", newSynTabSet);	
+			logger.info(">>>> add sync table:{}", newsyncTables);
+			
+			// "reset.offset", "table.whitelist"
+			String newtableWhitelist = "";
+			newtableWhitelist = configmap.get("table.whitelist") + "," + newsyncTables;
+			newtableWhitelist = StringUtils.strip(newtableWhitelist, ",");
+			configmap.put("table.whitelist", newtableWhitelist);
+
+
+		} else if (applyOrDrop == -1) {
+			logger.info(">>>> remove sync tableSet:{}", String.join(",", tableSet));
+
+			String[] tableArr = configmap.get("table.whitelist").split(",");
+			List<String> tableList = Arrays.asList(tableArr);
+			logger.info(">>>> existing sync tableList:{}", String.join(",", tableList));
+
+			String newtableWhitelist = tableList.stream().filter(s -> !tableSet.contains(s)).collect(Collectors.joining(","));
+			newtableWhitelist = StringUtils.strip(newtableWhitelist, ",");
+			logger.info(">>>> new newtableWhitelist={}", newtableWhitelist);
+
+			configmap.put("table.whitelist", newtableWhitelist);
+
+
+		} 
+
+		logger.info(">>>> new configmap={}", configmap);
 	}
 	private boolean checkPortListening(int port) throws Exception {
 		logger.info(">>>>>>>>>>>> checkPortListening:{} ", port);
