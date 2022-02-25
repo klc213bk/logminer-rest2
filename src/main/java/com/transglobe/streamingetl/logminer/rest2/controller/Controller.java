@@ -31,7 +31,7 @@ public class Controller {
 	
 	@PostMapping(path="/startLogminer", produces=MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
-	public ResponseEntity<Object> startConnector() throws Exception {
+	public ResponseEntity<Object> startLogminer() throws Exception {
 		logger.info(">>>>controller startLogminer is called");
 
 		ObjectNode objectNode = mapper.createObjectNode();
@@ -56,7 +56,7 @@ public class Controller {
 	}
 	@PostMapping(path="/stopLogminer", produces=MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
-	public ResponseEntity<Object> stopConnector() throws Exception {
+	public ResponseEntity<Object> stopLogminer() throws Exception {
 		logger.info(">>>>controller stopLogminer is called");
 
 		ObjectNode objectNode = mapper.createObjectNode();

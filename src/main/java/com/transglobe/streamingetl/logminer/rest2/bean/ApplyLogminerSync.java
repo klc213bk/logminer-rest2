@@ -1,13 +1,19 @@
 package com.transglobe.streamingetl.logminer.rest2.bean;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 public class ApplyLogminerSync {
 
+	@JsonProperty("resetOffset")
 	private Boolean resetOffset;
 	
-	private Long startScn;
+	@JsonProperty("startScn")
+	private String startScn;
 	
+	@JsonProperty("applyOrDrop")
 	private Integer applyOrDrop; // 1 :appply, -1: drop
 	
+	@JsonProperty("tableListStr")
 	private String tableListStr; // table separate with ','
 
 	public ApplyLogminerSync() {}
@@ -20,11 +26,11 @@ public class ApplyLogminerSync {
 		this.resetOffset = resetOffset;
 	}
 
-	public Long getStartScn() {
+	public String getStartScn() {
 		return startScn;
 	}
 
-	public void setStartScn(Long startScn) {
+	public void setStartScn(String startScn) {
 		this.startScn = startScn;
 	}
 

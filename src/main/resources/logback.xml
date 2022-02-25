@@ -1,5 +1,5 @@
 <configuration>
-	<property name="LOG_DIR" value="/data/logminer-rest2/logs" />
+	<property name="LOG_DIR" value="/data/v2/logminer-rest/logs" />
 	<property name="LOG_FILE" value="logminer-rest2" />
 	<appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
 		<encoder>

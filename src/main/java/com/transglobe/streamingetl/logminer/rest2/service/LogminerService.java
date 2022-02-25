@@ -261,7 +261,7 @@ public class LogminerService {
 		return configmap;
 
 	}
-	private void updatedConnectorConfigMap(Map<String,String> configmap, Boolean resetOffset, Long startScn, int applyOrDrop, Set<String> tableSet) throws Exception {
+	private void updatedConnectorConfigMap(Map<String,String> configmap, Boolean resetOffset, String startScn, int applyOrDrop, Set<String> tableSet) throws Exception {
 
 		logger.info(">>>> configmap={}", configmap);
 
@@ -269,7 +269,11 @@ public class LogminerService {
 			configmap.put("reset.offset", "true");
 		} else if (Boolean.FALSE.equals(resetOffset)) {
 			configmap.put("reset.offset", "false");
-			configmap.put("start.scn", String.valueOf(startScn));
+			if (StringUtils.isBlank(startScn)) {
+				configmap.put("start.scn", "");
+			} else {
+				configmap.put("start.scn", startScn);
+			}
 		}
 
 		if (applyOrDrop == 1) {

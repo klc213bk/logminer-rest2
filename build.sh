@@ -7,7 +7,7 @@ echo "start to build kafka-connect-logminer"
 cd ../kafka-connect-logminer
 mvn clean package
 
-cp ./target/kafka-connect-logminer-1.0.jar ../logminer-rest2/connectors
+cp ./target/kafka-connect-logminer-2.0.jar ../logminer-rest2/connectors
 
 cd ../logminer-rest2
 
