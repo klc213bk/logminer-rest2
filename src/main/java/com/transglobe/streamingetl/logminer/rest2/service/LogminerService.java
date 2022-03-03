@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Arrays;
@@ -33,6 +34,9 @@ import com.transglobe.streamingetl.logminer.rest2.bean.ApplyLogminerSync;
 public class LogminerService {
 	static final Logger logger = LoggerFactory.getLogger(LogminerService.class);
 
+	@Value("${connector.name.orig}")
+	private String connectorNameOrig;
+	
 	@Value("${connect.standlone.script}")
 	private String connectStandloneScript;
 	
@@ -48,8 +52,8 @@ public class LogminerService {
 	@Value("${connect.rest.url}")
 	private String connectRestUrl;
 	
-	@Value("${connector.name}")
-	private String connectorName;
+//	@Value("${connector.name}")
+//	private String connectorName;
 	
 	
 //	@Value("${connector.start.default.script}")
@@ -58,6 +62,8 @@ public class LogminerService {
 	private Process connectorStartProcess;
 
 	private ExecutorService connectorStartExecutor;
+	
+	private Map<String,String> origConfigMap;
 	
 	public void startLogminer() throws Exception {
 		logger.info(">>>>>>>>>>>> logminerService.startLogminer starting");
@@ -92,8 +98,9 @@ public class LogminerService {
 					logger.info(">>>> Sleep for 1 second");;
 				}
 				Thread.sleep(15000);
-				logger.info(">>>>>>>>>>>> KafkaService.startLogminer End");
-
+				
+				origConfigMap = getConnectorConfig(connectorNameOrig);
+				
 				logger.info(">>>>>>>>>>>> LogminerService.startConnector End");
 			} else {
 				logger.warn(" >>> connectorStartProcess is currently Running.");
@@ -145,8 +152,32 @@ public class LogminerService {
 			throw e;
 		} 
 	}
+	public void createDefaultConnector(String connectorName, String logminerClient) throws Exception {
+		
+		origConfigMap.put("logminer.client", logminerClient);
+		ObjectMapper mapper = new ObjectMapper();
+		String jsonConfigStr = mapper.writeValueAsString(origConfigMap);
+		
+		String json = String.format("{\"name\":\"%s\", \"config\":%s}", connectorName, jsonConfigStr);
+		
+		logger.info(">>>>>>> json={}", json);
+		
+//		CreateTopic createTopic = new CreateTopic();
+//		createTopic.setNumPartitions(numPartitions);
+//		createTopic.setReplicationFactor(replicationFactor);
+//		createTopic.setTopic(topic);
+//
+//		ObjectMapper mapper = new ObjectMapper();
+//		String jsonStr = mapper.writeValueAsString(createTopic);
+//
+//		String url = connectRestUrl + "/connectors";
+//		logger.info(">>>>>>> url={}, jsonStr={}", url, jsonStr); 
+//		String response = restPostService(url, jsonStr);
+//		logger.info(">>>>>>> response={}", response);
+	}
 	public Boolean applyLogminerSync(ApplyLogminerSync applySync) throws Exception {
 		logger.info(">>> ApplyLogminerSync={}", ToStringBuilder.reflectionToString(applySync));
+		String connectorName = applySync.getConnectorName();
 		Map<String,String>  configmap = getConnectorConfig(connectorName);
 		logger.info(">>> original configmap={}", configmap);
 
@@ -365,5 +396,42 @@ public class LogminerService {
 			if (reader != null) reader.close();
 		}
 
+	}
+	public static String restPostService(String urlStr, String jsonStr) throws Exception {
+
+		HttpURLConnection httpConn = null;
+		URL url = null;
+		OutputStream os = null;
+		BufferedReader in = null;
+		try {
+			url = new URL(urlStr);
+			httpConn = (HttpURLConnection)url.openConnection();
+			httpConn.setRequestMethod("POST");
+			httpConn.setRequestProperty("Content-Type", "application/json;utf-8" );
+			httpConn.setRequestProperty("Accept", "application/json" );
+			httpConn.setDoOutput(true);
+
+			os = httpConn.getOutputStream();
+			byte[] input = jsonStr.getBytes("utf-8");
+			os.write(input, 0, input.length);
+
+
+			//			httpConn.setRequestMethod(requestMethod);
+			int responseCode = httpConn.getResponseCode();
+
+			in = new BufferedReader(new InputStreamReader(httpConn.getInputStream(), "utf-8"));
+			StringBuffer response = new StringBuffer();
+			String readLine = null;
+			while ((readLine = in.readLine()) != null) {
+				response.append(readLine.trim());
+			}
+			in.close();
+
+			return response.toString();
+		} finally {
+			if (os != null) os.close();
+			if (in != null) in.close();
+			if (httpConn != null ) httpConn.disconnect();
+		}
 	}
 }

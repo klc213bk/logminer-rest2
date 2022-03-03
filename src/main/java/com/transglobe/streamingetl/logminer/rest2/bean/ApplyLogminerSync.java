@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 
 public class ApplyLogminerSync {
 
+	@JsonProperty("connectorName")
+	private String connectorName;
+	
 	@JsonProperty("resetOffset")
 	private Boolean resetOffset;
 	
@@ -18,6 +21,17 @@ public class ApplyLogminerSync {
 
 	public ApplyLogminerSync() {}
 	
+	
+	public String getConnectorName() {
+		return connectorName;
+	}
+
+
+	public void setConnectorName(String connectorName) {
+		this.connectorName = connectorName;
+	}
+
+
 	public Boolean getResetOffset() {
 		return resetOffset;
 	}

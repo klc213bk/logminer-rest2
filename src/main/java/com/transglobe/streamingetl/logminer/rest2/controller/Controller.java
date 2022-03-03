@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -109,5 +110,30 @@ public class Controller {
 		}
 
 		
+	}
+	@PostMapping(path="/createDefaultConnector/{connectorName}/{logminerClient}", produces=MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public ResponseEntity<Object> createDefaultConnector(@PathVariable("connectorName") String connectorName, @PathVariable("logminerClient") String logminerClient) throws Exception {
+		logger.info(">>>>controller createDefaultConnector is called");
+
+		ObjectNode objectNode = mapper.createObjectNode();
+
+		try {
+			logminerService.createDefaultConnector(connectorName, logminerClient);
+
+			objectNode.put("returnCode", "0000");
+		} catch (Exception e) {
+			String errMsg = ExceptionUtils.getMessage(e);
+			String stackTrace = ExceptionUtils.getStackTrace(e);
+			objectNode.put("returnCode", "-9999");
+			objectNode.put("errMsg", errMsg);
+			objectNode.put("returnCode", stackTrace);
+			logger.error(">>> errMsg={}, stacktrace={}",errMsg,stackTrace);
+			throw e;
+		}
+
+		logger.info(">>>>controller createDefaultConnector finished ");
+
+		return new ResponseEntity<Object>(objectNode, HttpStatus.OK);
 	}
 }
