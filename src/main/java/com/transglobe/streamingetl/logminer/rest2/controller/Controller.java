@@ -30,15 +30,15 @@ public class Controller {
 	@Autowired
 	private ObjectMapper mapper;
 	
-	@PostMapping(path="/startLogminer", produces=MediaType.APPLICATION_JSON_VALUE)
+	@PostMapping(path="/startInitialLogminer", produces=MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
-	public ResponseEntity<Object> startLogminer() throws Exception {
-		logger.info(">>>>controller startLogminer is called");
+	public ResponseEntity<Object> startInitialLogminer() throws Exception {
+		logger.info(">>>>controller startInitialLogminer is called");
 
 		ObjectNode objectNode = mapper.createObjectNode();
 
 		try {
-			logminerService.startLogminer();
+			logminerService.startInitialLogminer();
 
 			objectNode.put("returnCode", "0000");
 		} catch (Exception e) {
@@ -51,19 +51,19 @@ public class Controller {
 			throw e;
 		}
 
-		logger.info(">>>>controller startLogminer finished ");
+		logger.info(">>>>controller startInitialLogminer finished ");
 
 		return new ResponseEntity<Object>(objectNode, HttpStatus.OK);
 	}
-	@PostMapping(path="/stopLogminer", produces=MediaType.APPLICATION_JSON_VALUE)
+	@PostMapping(path="/stopInitialLogminer", produces=MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
-	public ResponseEntity<Object> stopLogminer() throws Exception {
-		logger.info(">>>>controller stopLogminer is called");
+	public ResponseEntity<Object> stopInitialLogminer() throws Exception {
+		logger.info(">>>>controller stopInitialLogminer is called");
 
 		ObjectNode objectNode = mapper.createObjectNode();
 
 		try {
-			logminerService.stopLogminer();
+			logminerService.stopInitialLogminer();
 
 			objectNode.put("returnCode", "0000");
 		} catch (Exception e) {
@@ -76,7 +76,7 @@ public class Controller {
 			throw e;
 		}
 
-		logger.info(">>>>controller stopLogminer finished ");
+		logger.info(">>>>controller stopInitialLogminer finished ");
 
 		return new ResponseEntity<Object>(objectNode, HttpStatus.OK);
 	}
@@ -111,15 +111,15 @@ public class Controller {
 
 		
 	}
-	@PostMapping(path="/createDefaultConnector/{connectorName}/{logminerClient}", produces=MediaType.APPLICATION_JSON_VALUE)
+	@PostMapping(path="/createInitialConnector/{connectorName}", produces=MediaType.APPLICATION_JSON_VALUE)
 	@ResponseBody
-	public ResponseEntity<Object> createDefaultConnector(@PathVariable("connectorName") String connectorName, @PathVariable("logminerClient") String logminerClient) throws Exception {
-		logger.info(">>>>controller createDefaultConnector is called");
+	public ResponseEntity<Object> createInitialConnector(@PathVariable("connectorName") String connectorName) throws Exception {
+		logger.info(">>>>controller createInitialConnector is called");
 
 		ObjectNode objectNode = mapper.createObjectNode();
 
 		try {
-			logminerService.createDefaultConnector(connectorName, logminerClient);
+			logminerService.createInitialConnector(connectorName);
 
 			objectNode.put("returnCode", "0000");
 		} catch (Exception e) {
@@ -132,7 +132,7 @@ public class Controller {
 			throw e;
 		}
 
-		logger.info(">>>>controller createDefaultConnector finished ");
+		logger.info(">>>>controller createInitialConnector finished ");
 
 		return new ResponseEntity<Object>(objectNode, HttpStatus.OK);
 	}

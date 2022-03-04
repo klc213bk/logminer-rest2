@@ -65,8 +65,8 @@ public class LogminerService {
 	
 	private Map<String,String> origConfigMap;
 	
-	public void startLogminer() throws Exception {
-		logger.info(">>>>>>>>>>>> logminerService.startLogminer starting");
+	public void startInitialLogminer() throws Exception {
+		logger.info(">>>>>>>>>>>> logminerService.startInitialLogminer starting");
 		try {
 			if (connectorStartProcess == null || !connectorStartProcess.isAlive()) {
 				logger.info(">>>>>>>>>>>> connectorStartProcess.isAlive={} ", (connectorStartProcess == null)? null : connectorStartProcess.isAlive());
@@ -92,16 +92,27 @@ public class LogminerService {
 					}
 
 				});
-				int connectRestPort = Integer.valueOf(connectRestPortStr);
-				while (!checkPortListening(connectRestPort)) {
+				int i = 0;
+				while (true) {
+					i++;
+					try {
+						origConfigMap = getConnectorConfig(connectorNameOrig);
+						break;
+					} catch (Exception e) {
+						logger.warn(">>>>>>>>>>>> trying get config map, but failed, try again");
+					}
 					Thread.sleep(1000);
-					logger.info(">>>> Sleep for 1 second");;
+					logger.info(">>>> Sleep for 1 second");
+					
+					if (i > 60) {
+						throw new Exception(">>>>> startInitialLogminer Failed after 60 seconds!!!");
+					}
 				}
 				Thread.sleep(15000);
 				
 				origConfigMap = getConnectorConfig(connectorNameOrig);
 				
-				logger.info(">>>>>>>>>>>> LogminerService.startConnector End");
+				logger.info(">>>>>>>>>>>> LogminerService.startInitialLogminer End");
 			} else {
 				logger.warn(" >>> connectorStartProcess is currently Running.");
 			}
@@ -110,8 +121,8 @@ public class LogminerService {
 			throw e;
 		} 
 	}
-	public void stopLogminer() throws Exception {
-		logger.info(">>>>>>>>>>>> LogminerService.stopLogminer starting...");
+	public void stopInitialLogminer() throws Exception {
+		logger.info(">>>>>>>>>>>> LogminerService.stopInitialLogminer starting...");
 		try {
 			if (connectorStartProcess != null && connectorStartProcess.isAlive()) {
 				logger.info(">>>>>>>>>>>> connectorStartProcess.isAlive={} ", (connectorStartProcess == null)? null : connectorStartProcess.isAlive());
@@ -124,7 +135,7 @@ public class LogminerService {
 					logger.info(">>>> Sleep for 10 second");;
 				}
 
-				logger.info(">>>>>>>>>>>> LogminerService.stopConnector End");
+				logger.info(">>>>>>>>>>>> LogminerService.stopInitialLogminer End");
 			} else {
 				logger.warn(" >>> connectorStartProcess IS NOT ALIVE.");
 			}
@@ -148,36 +159,28 @@ public class LogminerService {
 			} 
 
 		} catch (IOException e) {
-			logger.error(">>> Error!!!, stopLogminer, msg={}, stacktrace={}", ExceptionUtils.getMessage(e), ExceptionUtils.getStackTrace(e));
+			logger.error(">>> Error!!!, stopInitialLogminer, msg={}, stacktrace={}", ExceptionUtils.getMessage(e), ExceptionUtils.getStackTrace(e));
 			throw e;
 		} 
 	}
-	public void createDefaultConnector(String connectorName, String logminerClient) throws Exception {
+	public void createInitialConnector(String connectorName) throws Exception {
 		
-		origConfigMap.put("logminer.client", logminerClient);
+		origConfigMap.put("name", connectorName);
 		ObjectMapper mapper = new ObjectMapper();
 		String jsonConfigStr = mapper.writeValueAsString(origConfigMap);
 		
-		String json = String.format("{\"name\":\"%s\", \"config\":%s}", connectorName, jsonConfigStr);
+		String jsonStr = String.format("{\"name\":\"%s\", \"config\":%s}", connectorName, jsonConfigStr);
 		
-		logger.info(">>>>>>> json={}", json);
+		logger.info(">>>>>>> json={}", jsonStr);
 		
-//		CreateTopic createTopic = new CreateTopic();
-//		createTopic.setNumPartitions(numPartitions);
-//		createTopic.setReplicationFactor(replicationFactor);
-//		createTopic.setTopic(topic);
-//
-//		ObjectMapper mapper = new ObjectMapper();
-//		String jsonStr = mapper.writeValueAsString(createTopic);
-//
-//		String url = connectRestUrl + "/connectors";
-//		logger.info(">>>>>>> url={}, jsonStr={}", url, jsonStr); 
-//		String response = restPostService(url, jsonStr);
-//		logger.info(">>>>>>> response={}", response);
+		String url = connectRestUrl + "/connectors";
+		String response = restPostService(url, jsonStr);
+		logger.info(">>>>>>> response={}", response);
+		
 	}
 	public Boolean applyLogminerSync(ApplyLogminerSync applySync) throws Exception {
 		logger.info(">>> ApplyLogminerSync={}", ToStringBuilder.reflectionToString(applySync));
-		String connectorName = applySync.getConnectorName();
+		String connectorName = (applySync.getConnectorName() == null)? connectorNameOrig : applySync.getConnectorName();
 		Map<String,String>  configmap = getConnectorConfig(connectorName);
 		logger.info(">>> original configmap={}", configmap);
 
@@ -397,6 +400,43 @@ public class LogminerService {
 		}
 
 	}
+//	public static String restPostService(String urlStr, String jsonStr) throws Exception {
+//
+//		HttpURLConnection httpConn = null;
+//		URL url = null;
+//		OutputStream os = null;
+//		BufferedReader in = null;
+//		try {
+//			url = new URL(urlStr);
+//			httpConn = (HttpURLConnection)url.openConnection();
+//			httpConn.setRequestMethod("POST");
+//			httpConn.setRequestProperty("Content-Type", "application/json;utf-8" );
+//			httpConn.setRequestProperty("Accept", "application/json" );
+//			httpConn.setDoOutput(true);
+//
+//			os = httpConn.getOutputStream();
+//			byte[] input = jsonStr.getBytes("utf-8");
+//			os.write(input, 0, input.length);
+//
+//
+//			//			httpConn.setRequestMethod(requestMethod);
+//			int responseCode = httpConn.getResponseCode();
+//
+//			in = new BufferedReader(new InputStreamReader(httpConn.getInputStream(), "utf-8"));
+//			StringBuffer response = new StringBuffer();
+//			String readLine = null;
+//			while ((readLine = in.readLine()) != null) {
+//				response.append(readLine.trim());
+//			}
+//			in.close();
+//
+//			return response.toString();
+//		} finally {
+//			if (os != null) os.close();
+//			if (in != null) in.close();
+//			if (httpConn != null ) httpConn.disconnect();
+//		}
+//	}
 	public static String restPostService(String urlStr, String jsonStr) throws Exception {
 
 		HttpURLConnection httpConn = null;
@@ -404,21 +444,27 @@ public class LogminerService {
 		OutputStream os = null;
 		BufferedReader in = null;
 		try {
+			byte[] input = jsonStr.getBytes("utf-8");
+			
 			url = new URL(urlStr);
 			httpConn = (HttpURLConnection)url.openConnection();
 			httpConn.setRequestMethod("POST");
-			httpConn.setRequestProperty("Content-Type", "application/json;utf-8" );
+			httpConn.setRequestProperty("Charset", "UTF-8");
+			httpConn.setRequestProperty("Content-Type", "application/json" );
 			httpConn.setRequestProperty("Accept", "application/json" );
+			httpConn.setRequestProperty("Content-Length", String.valueOf(input.length));
 			httpConn.setDoOutput(true);
 
 			os = httpConn.getOutputStream();
-			byte[] input = jsonStr.getBytes("utf-8");
-			os.write(input, 0, input.length);
-
+			
+			os.write(input);
+			os.flush();
+			os.close();
 
 			//			httpConn.setRequestMethod(requestMethod);
 			int responseCode = httpConn.getResponseCode();
-
+			logger.info(">>>>>>>>>>>> responseCode={} ", responseCode);
+			
 			in = new BufferedReader(new InputStreamReader(httpConn.getInputStream(), "utf-8"));
 			StringBuffer response = new StringBuffer();
 			String readLine = null;
