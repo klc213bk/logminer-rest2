@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -133,6 +134,31 @@ public class Controller {
 		}
 
 		logger.info(">>>>controller createInitialConnector finished ");
+
+		return new ResponseEntity<Object>(objectNode, HttpStatus.OK);
+	}
+	@DeleteMapping(path="/connectors/{connectorName}", produces=MediaType.APPLICATION_JSON_VALUE)
+	@ResponseBody
+	public ResponseEntity<Object> deleteConnector(@PathVariable("connectorName") String connectorName) throws Exception {
+		logger.info(">>>>controller deleteConnector is called");
+
+		ObjectNode objectNode = mapper.createObjectNode();
+
+		try {
+			logminerService.deleteConnector(connectorName);
+
+			objectNode.put("returnCode", "0000");
+		} catch (Exception e) {
+			String errMsg = ExceptionUtils.getMessage(e);
+			String stackTrace = ExceptionUtils.getStackTrace(e);
+			objectNode.put("returnCode", "-9999");
+			objectNode.put("errMsg", errMsg);
+			objectNode.put("returnCode", stackTrace);
+			logger.error(">>> errMsg={}, stacktrace={}",errMsg,stackTrace);
+			throw e;
+		}
+
+		logger.info(">>>>controller deleteConnector finished ");
 
 		return new ResponseEntity<Object>(objectNode, HttpStatus.OK);
 	}
